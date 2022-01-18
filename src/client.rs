@@ -27,7 +27,7 @@ use serde;
 use serde_json;
 use serde_json::value::RawValue;
 
-use super::{Request, Response};
+use super::{Request, Response, arg};
 use util::HashableValue;
 use error::Error;
 
@@ -61,7 +61,7 @@ impl Client {
         }
     }
 
-    /// Builds a request.
+    /// Builds a request with a slice of params (serialized as a JSON array).
     ///
     /// To construct the arguments, one can use one of the shorthand methods
     /// [jsonrpc::arg] or [jsonrpc::try_arg].
@@ -69,6 +69,19 @@ impl Client {
         &self,
         method: &'a str,
         params: &'a [Box<RawValue>],
+    ) -> Request<'a> {
+        let json_array = serde_json::json!(params);
+        self.build_request_val(method, arg(json_array))
+    }
+
+    /// Builds a request with the params given as a RawValue.
+    ///
+    /// To construct the arguments, one can use one of the shorthand methods
+    /// [jsonrpc::arg] or [jsonrpc::try_arg].
+    pub fn build_request_val<'a>(
+        &self,
+        method: &'a str,
+        params: Box<RawValue>,
     ) -> Request<'a> {
         let nonce = self.nonce.fetch_add(1, atomic::Ordering::Relaxed);
         Request {
@@ -125,7 +138,8 @@ impl Client {
         Ok(results)
     }
 
-    /// Make a request and deserialize the response.
+    /// Make a request with a slice of params (serialized as a JSON array)
+    /// and deserialize the response.
     ///
     /// To construct the arguments, one can use one of the shorthand methods
     /// [jsonrpc::arg] or [jsonrpc::try_arg].
@@ -134,7 +148,20 @@ impl Client {
         method: &str,
         args: &[Box<RawValue>],
     ) -> Result<R, Error> {
-        let request = self.build_request(method, args);
+        let json_array = arg(&serde_json::json!(args));
+        self.call_val(method, json_array)
+    }
+
+    /// Make a request and deserialize the response.
+    ///
+    /// To construct the arguments, one can use one of the shorthand methods
+    /// [jsonrpc::arg] or [jsonrpc::try_arg].
+    pub fn call_val<R: for<'a> serde::de::Deserialize<'a>>(
+        &self,
+        method: &str,
+        args: Box<RawValue>,
+    ) -> Result<R, Error> {
+        let request = self.build_request_val(method, args);
         let id = request.id.clone();
 
         let response = self.send_request(request)?;
@@ -160,6 +187,7 @@ impl fmt::Debug for ::Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::empty_args;
     use std::sync;
 
     struct DummyTransport;
