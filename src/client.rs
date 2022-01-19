@@ -61,27 +61,14 @@ impl Client {
         }
     }
 
-    /// Builds a request with a slice of params (serialized as a JSON array).
+    /// Builds a request with the params given as a RawValue.
     ///
     /// To construct the arguments, one can use one of the shorthand methods
     /// [jsonrpc::arg] or [jsonrpc::try_arg].
     pub fn build_request<'a>(
         &self,
         method: &'a str,
-        params: &'a [Box<RawValue>],
-    ) -> Request<'a> {
-        let json_array = serde_json::json!(params);
-        self.build_request_val(method, arg(json_array))
-    }
-
-    /// Builds a request with the params given as a RawValue.
-    ///
-    /// To construct the arguments, one can use one of the shorthand methods
-    /// [jsonrpc::arg] or [jsonrpc::try_arg].
-    pub fn build_request_val<'a>(
-        &self,
-        method: &'a str,
-        params: Box<RawValue>,
+        params: &'a Box<RawValue>
     ) -> Request<'a> {
         let nonce = self.nonce.fetch_add(1, atomic::Ordering::Relaxed);
         Request {
@@ -138,30 +125,16 @@ impl Client {
         Ok(results)
     }
 
-    /// Make a request with a slice of params (serialized as a JSON array)
-    /// and deserialize the response.
+    /// Make a request and deserialize the response.
     ///
     /// To construct the arguments, one can use one of the shorthand methods
     /// [jsonrpc::arg] or [jsonrpc::try_arg].
     pub fn call<R: for<'a> serde::de::Deserialize<'a>>(
         &self,
         method: &str,
-        args: &[Box<RawValue>],
+        args: &Box<RawValue>,
     ) -> Result<R, Error> {
-        let json_array = arg(&serde_json::json!(args));
-        self.call_val(method, json_array)
-    }
-
-    /// Make a request and deserialize the response.
-    ///
-    /// To construct the arguments, one can use one of the shorthand methods
-    /// [jsonrpc::arg] or [jsonrpc::try_arg].
-    pub fn call_val<R: for<'a> serde::de::Deserialize<'a>>(
-        &self,
-        method: &str,
-        args: Box<RawValue>,
-    ) -> Result<R, Error> {
-        let request = self.build_request_val(method, args);
+        let request = self.build_request(method, args);
         let id = request.id.clone();
 
         let response = self.send_request(request)?;
@@ -199,11 +172,12 @@ mod tests {
 
     #[test]
     fn sanity() {
+        let noargs = empty_args();
         let client = Client::with_transport(DummyTransport);
         assert_eq!(client.nonce.load(sync::atomic::Ordering::Relaxed), 1);
-        let req1 = client.build_request("test", &[]);
+        let req1 = client.build_request("test", &noargs);
         assert_eq!(client.nonce.load(sync::atomic::Ordering::Relaxed), 2);
-        let req2 = client.build_request("test", &[]);
+        let req2 = client.build_request("test", &noargs);
         assert_eq!(client.nonce.load(sync::atomic::Ordering::Relaxed), 3);
         assert!(req1.id != req2.id);
     }
