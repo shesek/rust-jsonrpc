@@ -63,13 +63,18 @@ pub fn arg<T: serde::Serialize>(arg: T) -> Box<RawValue> {
     }
 }
 
+/// Get a RawValue of an empty array
+pub fn empty_args() -> Box<RawValue> {
+    RawValue::from_string("[]".to_string()).unwrap()
+}
+
 #[derive(Debug, Clone, Serialize)]
 /// A JSONRPC request object
 pub struct Request<'a> {
     /// The name of the RPC call
     pub method: &'a str,
     /// Parameters to the RPC call
-    pub params: Box<RawValue>,
+    pub params: &'a Box<RawValue>,
     /// Identifier for this Request, which should appear in the response
     pub id: serde_json::Value,
     /// jsonrpc field, MUST be "2.0"
