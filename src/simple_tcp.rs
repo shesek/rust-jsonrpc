@@ -112,7 +112,7 @@ mod tests {
     };
 
     use super::*;
-    use Client;
+    use {empty_args, Client};
 
     // Test a dummy request / response over a raw TCP transport
     #[test]
@@ -123,7 +123,7 @@ mod tests {
         let addr = server.local_addr().unwrap();
         let dummy_req = Request {
             method: "arandommethod",
-            params: &[],
+            params: &empty_args(),
             id: serde_json::Value::Number(4242242.into()),
             jsonrpc: Some("2.0".into()),
         };
@@ -142,8 +142,13 @@ mod tests {
                 timeout: Some(time::Duration::from_secs(5)),
             };
             let client = Client::with_transport(transport);
-
-            client.send_request(dummy_req.clone()).unwrap()
+            let dummy_req = Request {
+                method: "arandommethod",
+                params: &empty_args(),
+                id: serde_json::Value::Number(4242242.into()),
+                jsonrpc: Some("2.0".into()),
+            };
+            client.send_request(dummy_req).unwrap()
         });
 
         let (mut stream, _) = server.accept().unwrap();
